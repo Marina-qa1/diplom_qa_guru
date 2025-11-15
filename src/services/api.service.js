@@ -1,0 +1,20 @@
+
+import { ChallengerService, ChallengesService, TodosService } from "./index";
+
+export class Api {
+  constructor(request) {
+    this.request = request;
+    this.challenger = new ChallengerService(request);
+    this.challenges = new ChallengesService(request);
+    this.todos = new TodosService(request);
+    this.token = null; 
+  }
+  setToken(token) {
+    this.token = token;
+  }
+  
+  getToken() {
+    return this.token;
+  }
+  
+}
