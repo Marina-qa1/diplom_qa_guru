@@ -1,7 +1,7 @@
 {
   "name": "marina.roginskaya",
   "version": "1.0.0",
-  "description": "I and API automated tests with Playwright",
+  "description": "JS automated tests with Playwright",
   "main": "index.js",
   "type": "module",
   "scripts": {
