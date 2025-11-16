@@ -43,23 +43,23 @@ jobs:
           path: allure-results
           retention-days: 20
           
-      # Устанавливаем allurectl ДО его использования
-      - name: Install allurectl
-        if: always()
-        run: |
-          curl -o allurectl -L "https://github.com/allure-framework/allurectl/releases/latest/download/allurectl_linux_amd64"
-          chmod +x allurectl
-          sudo mv allurectl /usr/local/bin/
+      # # Устанавливаем allurectl ДО его использования
+      # - name: Install allurectl
+      #   if: always()
+      #   run: |
+      #     curl -o allurectl -L "https://github.com/allure-framework/allurectl/releases/latest/download/allurectl_linux_amd64"
+      #     chmod +x allurectl
+      #     sudo mv allurectl /usr/local/bin/
           
-      # Загружаем в Allure TestOps
-      - name: Upload results to Allure TestOps
-        if: always()
-        run: |
-          allurectl upload allure-results \
-            --endpoint https://allure.autotests.cloud \
-            --project-id 5005 \
-            --token ${{ secrets.ALLURE_TOKEN }} \
-            --launch-name "GitHub Run #${{ github.run_number }}"
+      # # Загружаем в Allure TestOps
+      # - name: Upload results to Allure TestOps
+      #   if: always()
+      #   run: |
+      #     allurectl upload allure-results \
+      #       --endpoint https://allure.autotests.cloud \
+      #       --project-id 5005 \
+      #       --token ${{ secrets.ALLURE_TOKEN }} \
+      #       --launch-name "GitHub Run #${{ github.run_number }}"
             
       # Забираем результаты предыдущего запуска для истории
       - uses: actions/checkout@v4
