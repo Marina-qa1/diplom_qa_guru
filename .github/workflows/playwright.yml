@@ -1,112 +1,36 @@
-name: playwright tests
-
+name: E2E
+# Когда запускаем
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
-
+# Описываем джобы
 jobs:
-  e2eTests:
+  e2e:
     runs-on: ubuntu-latest
-    
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Установка Node.js
+        uses: actions/setup-node@v5
         with:
           node-version: lts/*
-          
       - name: Установка пакетов
         run: npm i
-        
       - name: Устанавливаем браузеры
         run: npx playwright install --with-deps
-        
       - name: Запускаем тесты
         run: npm t
-        
-      # Сохраняем результаты тестов
+      - name: Запускаем генерацию allure в одном файле
+        run: npm run allureFile
+        if: always()
+        continue-on-error: true
+      # сохраняем результаты
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         with:
-          name: test-results
-          path: test-results
-          retention-days: 20
-          
-      # Сохраняем результаты Allure
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: allure-results
-          path: allure-results
-          retention-days: 20
-          
-      # # Устанавливаем allurectl ДО его использования
-      # - name: Install allurectl
-      #   if: always()
-      #   run: |
-      #     curl -o allurectl -L "https://github.com/allure-framework/allurectl/releases/latest/download/allurectl_linux_amd64"
-      #     chmod +x allurectl
-      #     sudo mv allurectl /usr/local/bin/
-          
-      # # Загружаем в Allure TestOps
-      # - name: Upload results to Allure TestOps
-      #   if: always()
-      #   run: |
-      #     allurectl upload allure-results \
-      #       --endpoint https://allure.autotests.cloud \
-      #       --project-id 5005 \
-      #       --token ${{ secrets.ALLURE_TOKEN }} \
-      #       --launch-name "GitHub Run #${{ github.run_number }}"
-            
-      # Забираем результаты предыдущего запуска для истории
-      - uses: actions/checkout@v4
-        if: always()
-        with:
-          ref: gh-pages
-          path: gh-pages
-          
-      # Формируем отчёт
-      - uses: simple-elf/allure-report-action@master
-        if: always()
-        with:
-          allure_results: allure-results
-          gh_pages: gh-pages
-          allure_report: allure-report
-          allure_history: allure-history
-          keep_reports: 20
-          
-      # Деплоим отчёт
-      - name: Deploy report
-        if: always()
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: allure-history
-          force_orphan: true
-          
-      # Парсим статистику (после генерации отчёта)
-      - name: Parse Allure summary
-        id: parse_summary
-        if: always()
-        run: |
-          SUMMARY_FILE="allure-report/widgets/summary.json"
-          if [ -f "$SUMMARY_FILE" ]; then
-            PASSED=$(jq -r '.statistic.passed' "$SUMMARY_FILE")
-            FAILED=$(jq -r '.statistic.failed' "$SUMMARY_FILE")
-            SKIPPED=$(jq -r '.statistic.skipped' "$SUMMARY_FILE")
-            TOTAL=$(jq -r '.statistic.total' "$SUMMARY_FILE")
-            echo "PASSED=$PASSED" >> $GITHUB_ENV
-            echo "FAILED=$FAILED" >> $GITHUB_ENV
-            echo "SKIPPED=$SKIPPED" >> $GITHUB_ENV
-            echo "TOTAL=$TOTAL" >> $GITHUB_ENV
-          else
-            echo "SUMMARY_FILE not found, using defaults"
-            echo "PASSED=0" >> $GITHUB_ENV
-            echo "FAILED=0" >> $GITHUB_ENV
-            echo "SKIPPED=0" >> $GITHUB_ENV
-            echo "TOTAL=0" >> $GITHUB_ENV
-          fi
+          name: allure-report
+          path: allure-report
+          retention-days: 30
