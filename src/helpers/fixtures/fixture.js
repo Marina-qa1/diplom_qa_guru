@@ -1,5 +1,5 @@
 import {test as base} from '@playwright/test';
-import {App} from '../../pagesFacade/app.page';
+import {App} from '../../pages/app.page';
 import { Api } from "../../services/api.service";
 import { UserBuilder } from '../builders';
 
