@@ -33,9 +33,9 @@ jobs:
       - name: 🌐 Install Playwright
         run: npx playwright install --with-deps
 
-      # 5. Запуск всех тестов
+      # 5. Запуск всех тестов с Allure репортером
       - name: ▶️ Execute tests
-        run: npm run test
+        run: npx playwright test --reporter=line,allure-playwright
 
       # 6. Подготавливаем историю для Allure
       - name: 🗃️ Fetch previous reports
@@ -66,17 +66,7 @@ jobs:
           publish_branch: gh-pages
           publish_dir: allure-history
 
-      # 9. Загружаем результаты в Allure TestOps
-      - name: ☁️ Upload to Allure TestOps
-        if: always()
-        uses: automatictester/allure-testops-action@v2
-        with:
-          allure-testops-url: https://allure.autotests.cloud
-          allure-testops-project: 5005
-          allure-testops-token: ${{ secrets.ALLURE_TOKEN }}
-          allure-results: allure-results
-
-      # 10. Сохраняем артефакты
+      # 9. Сохраняем артефакты
       - name: 📁 Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -87,7 +77,7 @@ jobs:
             allure-results
           retention-days: 20
 
-      # 11. Извлекаем статистику из отчёта
+      # 10. Извлекаем статистику из отчёта
       - name: 📋 Parse test summary
         id: parse_summary
         if: always()
@@ -99,5 +89,3 @@ jobs:
             echo "SKIPPED=$(jq -r '.statistic.skipped' $file)" >> $GITHUB_ENV
             echo "TOTAL=$(jq -r '.statistic.total' $file)" >> $GITHUB_ENV
           fi
-
-     
