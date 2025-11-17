@@ -1,32 +1,37 @@
 name: E2E
-# Когда запускаем
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-# Описываем джобы
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        
       - name: Установка Node.js
         uses: actions/setup-node@v5
         with:
           node-version: lts/*
+          
       - name: Установка пакетов
         run: npm i
+        
       - name: Устанавливаем браузеры
         run: npx playwright install --with-deps
+        
       - name: Запускаем тесты
         run: npm t
+        
       - name: Запускаем генерацию allure в одном файле
         run: npm run allureFile
         if: always()
         continue-on-error: true
-# Сохраняем результаты Allure 
+
+      # Сохраняем результаты Allure 
       - uses: actions/upload-artifact@v4
         if: always()
         continue-on-error: true
@@ -34,6 +39,7 @@ jobs:
           name: allure-results
           path: allure-results
           retention-days: 20
+          
       # Забираем результаты предыдущего запуска  
       - uses: actions/checkout@v4
         if: always()
@@ -41,6 +47,7 @@ jobs:
         with:
           ref: gh-pages
           path: gh-pages
+          
       # Формируем из allure-results отчёт allure-report
       - uses: simple-elf/allure-report-action@master
         if: always()
@@ -51,6 +58,7 @@ jobs:
           allure_report: allure-report
           allure_history: allure-history
           keep_reports: 20
+          
       # Деплоим отчёт
       - name: deploy report
         if: always()
@@ -60,16 +68,14 @@ jobs:
           publish_branch: gh-pages
           publish_dir: allure-history
 
-      - name: Install allurectl
-        run: |
-          curl -o allurectl -L "https://github.com/allure-framework/allurectl/releases/latest/download/allurectl_linux_amd64"
-          chmod +x allurectl
-          sudo mv allurectl /usr/local/bin/
-
-      - name: Upload results to Allure TestOps
+      - name: Install and setup allurectl
         if: always()
         run: |
-          allurectl upload allure-results \
+          # Скачиваем allurectl
+          curl -o allurectl -L "https://github.com/allure-framework/allurectl/releases/latest/download/allurectl_linux_amd64"
+          chmod +x allurectl
+          # Используем ./ для запуска, так как файл в текущей директории
+          ./allurectl upload allure-results \
             --endpoint https://allure.autotests.cloud \
             --project-id 5005 \
             --token ${{ secrets.ALLURE_TOKEN }} \
@@ -81,18 +87,27 @@ jobs:
         run: |
           SUMMARY_FILE="allure-report/widgets/summary.json"
           if [ -f "$SUMMARY_FILE" ]; then
-            PASSED=$(jq '.statistic.passed' $SUMMARY_FILE)
-            FAILED=$(jq '.statistic.failed' $SUMMARY_FILE)
-            SKIPPED=$(jq '.statistic.skipped' $SUMMARY_FILE)
-            TOTAL=$(jq '.statistic.total' $SUMMARY_FILE)
+            PASSED=$(jq -r '.statistic.passed' $SUMMARY_FILE)
+            FAILED=$(jq -r '.statistic.failed' $SUMMARY_FILE)
+            SKIPPED=$(jq -r '.statistic.skipped' $SUMMARY_FILE)
+            TOTAL=$(jq -r '.statistic.total' $SUMMARY_FILE)
             echo "PASSED=$PASSED" >> $GITHUB_ENV
             echo "FAILED=$FAILED" >> $GITHUB_ENV
             echo "SKIPPED=$SKIPPED" >> $GITHUB_ENV
             echo "TOTAL=$TOTAL" >> $GITHUB_ENV
+          else
+            echo "Summary file not found, setting default values"
+            echo "PASSED=0" >> $GITHUB_ENV
+            echo "FAILED=0" >> $GITHUB_ENV
+            echo "SKIPPED=0" >> $GITHUB_ENV
+            echo "TOTAL=0" >> $GITHUB_ENV
           fi
 
       - name: Notify Telegram
         if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           STATUS=${{ job.status }}
           if [ "$STATUS" = "success" ]; then
@@ -117,7 +132,7 @@ jobs:
           ━━━━━━━━━━━━━━━━━%0A\
           🏷️ *Run #${{ github.run_number }}*"
 
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-          -d parse_mode=Markdown \
-          -d text="$MESSAGE"
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -d "chat_id=$TELEGRAM_CHAT_ID" \
+            -d "parse_mode=Markdown" \
+            -d "text=$MESSAGE"
