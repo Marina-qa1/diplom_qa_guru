@@ -115,8 +115,8 @@ jobs:
           msg+="❌ Упали: *$FAILED*%0A"
           msg+="⏭️ Пропущено: *$SKIPPED*%0A"
           msg+="%0A━━━━━━━━━━━━━━━━━%0A"
-          msg+="🔗 [Отчёт Allure](https://lizneva-step.github.io/QA_Guru_Diploma/)%0A"
-          msg+="🧪 [TestOps](https://allure.autotests.cloud/project/4993)%0A"
+          msg+="🔗 [Отчёт Allure](https://https://github.com/Marina-qa1/diplom_qa_guru/)%0A"
+          msg+="🧪 [TestOps](hhttps://allure.autotests.cloud/launch/49663)%0A"
           msg+="📦 [Артефакты]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)%0A"
           msg+="%0A🏷️ *Запуск #${{ github.run_number }}*"
 
