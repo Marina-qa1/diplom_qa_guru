@@ -58,28 +58,6 @@ jobs:
           allure_report: allure-report
           allure_history: allure-history
           keep_reports: 20
-          
-      # # Деплоим отчёт
-      # - name: deploy report
-      #   if: always()
-      #   uses: peaceiris/actions-gh-pages@v4
-      #   with:
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-      #     publish_branch: gh-pages
-      #     publish_dir: allure-history
-
-      # - name: Install and setup allurectl
-      #   if: always()
-      #   run: |
-      #     # Скачиваем allurectl
-      #     curl -o allurectl -L "https://github.com/allure-framework/allurectl/releases/latest/download/allurectl_linux_amd64"
-      #     chmod +x allurectl
-      #     # Используем ./ для запуска, так как файл в текущей директории
-      #     ./allurectl upload allure-results \
-      #       --endpoint https://allure.autotests.cloud \
-      #       --project-id 5005 \
-      #       --token ${{ secrets.ALLURE_TOKEN }} \
-      #       --launch-name "GitHub Run #${{ github.run_number }}"
       
       - name: Install Allurectl
         if: hashFiles('allure-results/*.json') != ''
@@ -91,7 +69,6 @@ jobs:
           chmod +x allurectl
           sudo mv allurectl /usr/local/bin/
           allurectl --version
-
 
       - name: Create Allure TestOps launch
         if: hashFiles('allure-results/*.json') != ''
@@ -115,59 +92,47 @@ jobs:
             --project-id ${{ secrets.ALLURE_PROJECT_ID }} \
             --endpoint ${{ secrets.ALLURE_ENDPOINT }} \
             --token ${{ secrets.ALLURE_TOKEN }}
-          
-      # - name: Parse Allure summary
-      #   id: parse_summary
-      #   if: always()
-      #   run: |
-      #     SUMMARY_FILE="allure-report/widgets/summary.json"
-      #     if [ -f "$SUMMARY_FILE" ]; then
-      #       PASSED=$(jq -r '.statistic.passed' $SUMMARY_FILE)
-      #       FAILED=$(jq -r '.statistic.failed' $SUMMARY_FILE)
-      #       SKIPPED=$(jq -r '.statistic.skipped' $SUMMARY_FILE)
-      #       TOTAL=$(jq -r '.statistic.total' $SUMMARY_FILE)
-      #       echo "PASSED=$PASSED" >> $GITHUB_ENV
-      #       echo "FAILED=$FAILED" >> $GITHUB_ENV
-      #       echo "SKIPPED=$SKIPPED" >> $GITHUB_ENV
-      #       echo "TOTAL=$TOTAL" >> $GITHUB_ENV
-      #     else
-      #       echo "Summary file not found, setting default values"
-      #       echo "PASSED=0" >> $GITHUB_ENV
-      #       echo "FAILED=0" >> $GITHUB_ENV
-      #       echo "SKIPPED=0" >> $GITHUB_ENV
-      #       echo "TOTAL=0" >> $GITHUB_ENV
-      #     fi
+        
 
       - name: Notify Telegram
-        if: always()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          STATUS=${{ job.status }}
-          if [ "$STATUS" = "success" ]; then
-            EMOJI="🎉"
-            STATUS_TEXT="УСПЕХ"
-          else
-            EMOJI="🚨" 
-            STATUS_TEXT="НЕУДАЧА"
-          fi
+  if: always()
+  env:
+    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+  run: |
+    # Если у вас есть allure results
+    if [ -d "allure-results" ]; then
+      TOTAL=$(find allure-results -name "*.json" | wc -l || echo "0")
+      PASSED=$(grep -r '"status":"passed"' allure-results | wc -l || echo "0")
+      FAILED=$(grep -r '"status":"failed"' allure-results | wc -l || echo "0")
+      SKIPPED=$(grep -r '"status":"skipped"' allure-results | wc -l || echo "0")
+    else
+      TOTAL="N/A"
+      PASSED="N/A" 
+      FAILED="N/A"
+      SKIPPED="N/A"
+    fi
     
-          MESSAGE="$EMOJI *$STATUS_TEXT* $EMOJI%0A\
-          ━━━━━━━━━━━━━━━━━%0A\
-          📊 *Статистика тестов:*%0A\
-          ▫️ Всего пройдено: *$TOTAL*%0A\
-          ✅ Успешные: *$PASSED*%0A\
-          ❌ Провалено: *$FAILED*%0A\
-          ⏭️ Пропущено: *$SKIPPED*%0A\
-          ━━━━━━━━━━━━━━━━━%0A\
-          🔗 [Allure отчет](https://github.com/Marina-qa1/diplom_qa_guru/)%0A\
-          🧪 [Allure TestOps](https://allure.autotests.cloud/launch/49653)%0A\
-          📦 [Артефакты](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})%0A\
-          ━━━━━━━━━━━━━━━━━%0A\
-          🏷️ *Run #${{ github.run_number }}*"
+    STATUS=${{ job.status }}
+    if [ "$STATUS" = "success" ]; then
+      EMOJI="🎉"
+      STATUS_TEXT="УСПЕХ"
+    else
+      EMOJI="🚨" 
+      STATUS_TEXT="НЕУДАЧА"
+    fi
 
-          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-            -d "chat_id=$TELEGRAM_CHAT_ID" \
-            -d "parse_mode=Markdown" \
-            -d "text=$MESSAGE"
+    MESSAGE="$EMOJI *$STATUS_TEXT* $EMOJI%0A\
+    📊 *Статистика тестов:*%0A\
+    ▫️ Всего: *$TOTAL*%0A\
+    ✅ Успешные: *$PASSED*%0A\
+    ❌ Провалено: *$FAILED*%0A\
+    ⏭️ Пропущено: *$SKIPPED*%0A\
+    ━━━━━━━━━━━━━━━━━%0A\
+    🔗 [Allure отчет](https://github.com/Marina-qa1/diplom_qa_guru/)%0A\
+    🏷️ *Run #${{ github.run_number }}*"
+
+    curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+      -d "chat_id=$TELEGRAM_CHAT_ID" \
+      -d "parse_mode=Markdown" \
+      -d "text=$MESSAGE"
