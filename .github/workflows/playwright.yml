@@ -95,44 +95,31 @@ jobs:
         
 
       - name: Notify Telegram
-  if: always()
-  env:
-    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-    TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-  run: |
-    # Если у вас есть allure results
-    if [ -d "allure-results" ]; then
-      TOTAL=$(find allure-results -name "*.json" | wc -l || echo "0")
-      PASSED=$(grep -r '"status":"passed"' allure-results | wc -l || echo "0")
-      FAILED=$(grep -r '"status":"failed"' allure-results | wc -l || echo "0")
-      SKIPPED=$(grep -r '"status":"skipped"' allure-results | wc -l || echo "0")
-    else
-      TOTAL="N/A"
-      PASSED="N/A" 
-      FAILED="N/A"
-      SKIPPED="N/A"
-    fi
-    
-    STATUS=${{ job.status }}
-    if [ "$STATUS" = "success" ]; then
-      EMOJI="🎉"
-      STATUS_TEXT="УСПЕХ"
-    else
-      EMOJI="🚨" 
-      STATUS_TEXT="НЕУДАЧА"
-    fi
+        if: always()
+        run: |
+          status=${{ job.status }}
+          if [ "$status" = "success" ]; then
+            emoji="✅"
+            text="ТЕСТЫ ПРОЙДЕНЫ"
+          else
+            emoji="❌"
+            text="ОШИБКИ В ТЕСТАХ"
+          fi
 
-    MESSAGE="$EMOJI *$STATUS_TEXT* $EMOJI%0A\
-    📊 *Статистика тестов:*%0A\
-    ▫️ Всего: *$TOTAL*%0A\
-    ✅ Успешные: *$PASSED*%0A\
-    ❌ Провалено: *$FAILED*%0A\
-    ⏭️ Пропущено: *$SKIPPED*%0A\
-    ━━━━━━━━━━━━━━━━━%0A\
-    🔗 [Allure отчет](https://github.com/Marina-qa1/diplom_qa_guru/)%0A\
-    🏷️ *Run #${{ github.run_number }}*"
+          msg="$emoji *$text* $emoji%0A"
+          msg+="%0A📊 *Результаты*:%0A"
 
-    curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-      -d "chat_id=$TELEGRAM_CHAT_ID" \
-      -d "parse_mode=Markdown" \
-      -d "text=$MESSAGE"
+          msg+="📋 Всего: *$TOTAL*%0A"
+          msg+="✅ Пройдено: *$PASSED*%0A"
+          msg+="❌ Упали: *$FAILED*%0A"
+          msg+="⏭️ Пропущено: *$SKIPPED*%0A"
+          msg+="%0A━━━━━━━━━━━━━━━━━%0A"
+          msg+="🔗 [Отчёт Allure](https://lizneva-step.github.io/QA_Guru_Diploma/)%0A"
+          msg+="🧪 [TestOps](https://allure.autotests.cloud/project/4993)%0A"
+          msg+="📦 [Артефакты]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)%0A"
+          msg+="%0A🏷️ *Запуск #${{ github.run_number }}*"
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode=Markdown \
+            -d text="$msg"
