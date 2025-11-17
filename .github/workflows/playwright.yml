@@ -93,21 +93,37 @@ jobs:
             --endpoint ${{ secrets.ALLURE_ENDPOINT }} \
             --token ${{ secrets.ALLURE_TOKEN }}
 
-        
+      - name: 📋 Parse test summary
+        id: parse_summary
+        if: always()
+        run: |
+          file="allure-report/widgets/summary.json"
+          if [ -f "$file" ]; then
+            echo "PASSED=$(jq -r '.statistic.passed' $file)" >> $GITHUB_ENV
+            echo "FAILED=$(jq -r '.statistic.failed' $file)" >> $GITHUB_ENV
+            echo "SKIPPED=$(jq -r '.statistic.skipped' $file)" >> $GITHUB_ENV
+            echo "TOTAL=$(jq -r '.statistic.total' $file)" >> $GITHUB_ENV
+          fi 
 
       - name: Notify Telegram
         if: always()
         run: |
-         if [ "${{ job.status }}" = "success" ]; then
-         emoji="✅"
-         text="ТЕСТЫ ПРОЙДЕНЫ"
-         else
-         emoji="❌"
-         text="ОШИБКИ В ТЕСТАХ"
-         fi
+          status=${{ job.status }}
+          if [ "$status" = "success" ]; then
+            emoji="✅"
+            text="ТЕСТЫ ПРОЙДЕНЫ"
+          else
+            emoji="❌"
+            text="ОШИБКИ В ТЕСТАХ"
+          fi
 
-         msg="$emoji *$text* $emoji%0A"
-         msg+="%0A🏷️ *Запуск #${{ github.run_number }}*%0A"
+          msg="$emoji *$text* $emoji%0A"
+          msg+="%0A📊 *Результаты*:%0A"
+
+          msg+="📋 Всего: *$TOTAL*%0A"
+          msg+="✅ Пройдено: *$PASSED*%0A"
+          msg+="❌ Упали: *$FAILED*%0A"
+          msg+="⏭️ Пропущено: *$SKIPPED*%0A"
           msg+="%0A━━━━━━━━━━━━━━━━━%0A"
           msg+="🔗 [Отчёт Allure](https://marina-qa1.github.io/diplom_qa_guru/)%0A"
           msg+="🧪 [TestOps](https://allure.autotests.cloud/launch/49663)%0A"
