@@ -1,0 +1,42 @@
+{
+  "name": "marina.roginskaya",
+  "version": "1.0.0",
+  "description": "JS automated tests with Playwright",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug",
+    "test:api": "npx playwright test tests/api --grep \"@API\"",
+    "test:ui-suite": "npx playwright test tests/ui",
+    "test:e2e": "npx playwright test --grep \"@E2E\"",
+    "test:smoke": "npx playwright test --grep \"@smoke\"",
+    "allure:generate": "allure generate allure-results --clean",
+    "allure:open": "allure open allure-report",
+    "allure:serve": "allure serve allure-results",
+    "report": "npx playwright show-report",
+    "install:browsers": "npx playwright install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Marina-qa1/diplom_qa_guru.git"
+  },
+  "keywords": [],
+  "author": "Marina Roginskaya",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Marina-qa1/diplom_qa_guru/issues"
+  },
+  "homepage": "https://github.com/Marina-qa1/diplom_qa_guru/#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^10.0.0",
+    "allure-playwright": "^3.4.1",
+    "dotenv": "^16.6.1"
+  }
+}

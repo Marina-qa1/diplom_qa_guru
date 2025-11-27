@@ -1,0 +1,13 @@
+demoGit/
+node_modules/
+.DS_Store
+test-results/
+playwright-report/5_lesson/
+allure-results/
+playwright-report/test-results/
+playwright-report/data/
+Applications/QAAuto/demoGit/
+playwright-report/
+playwright/.cache/
+
+.env

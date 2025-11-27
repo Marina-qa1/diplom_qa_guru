@@ -1,0 +1,138 @@
+name: E2E
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        
+      - name: Установка Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          
+      - name: Установка пакетов
+        run: npm ci
+        
+      - name: Устанавливаем браузеры
+        run: npx playwright install --with-deps
+        
+      - name: Запускаем тесты
+        run: npm t
+        env:
+         LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        
+      - name: Запускаем генерацию allure в одном файле
+        run: npm run allureFile
+        if: always()
+        continue-on-error: true
+
+      # Сохраняем результаты Allure 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: allure-results
+          path: allure-results
+          retention-days: 20
+          
+      # Забираем результаты предыдущего запуска  
+      - uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+          
+      # Формируем из allure-results отчёт allure-report
+      - uses: simple-elf/allure-report-action@master
+        if: always()
+        id: allure-report
+        with:
+          allure_results: allure-results
+          gh_pages: gh-pages
+          allure_report: allure-report
+          allure_history: allure-history
+          keep_reports: 20
+      
+      - name: Install Allurectl
+        if: hashFiles('allure-results/*.json') != ''
+        run: |
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/allure-framework/allurectl/releases/latest \
+            | jq -r '.assets[] | select(.name | test("linux_amd64")) | .browser_download_url')
+          echo "Downloading allurectl from $DOWNLOAD_URL"
+          curl -sLo allurectl "$DOWNLOAD_URL"
+          chmod +x allurectl
+          sudo mv allurectl /usr/local/bin/
+          allurectl --version
+
+      - name: Create Allure TestOps launch
+        if: hashFiles('allure-results/*.json') != ''
+        id: create_launch
+        run: |
+          LAUNCH_ID=$(allurectl launch create \
+            --launch-name "Tests - Build #${{ github.run_number }}" \
+            --launch-tags "ci,github-actions" \
+            --project-id ${{ secrets.ALLURE_PROJECT_ID }} \
+            --endpoint ${{ secrets.ALLURE_ENDPOINT }} \
+            --token ${{ secrets.ALLURE_TOKEN }} \
+            --no-header \
+            -o json | jq -r '.[0].id')
+          echo "LAUNCH_ID=$LAUNCH_ID" >> $GITHUB_ENV
+
+      - name: Upload results to Allure TestOps
+        if: hashFiles('allure-results/*.json') != '' && env.LAUNCH_ID != ''
+        run: |
+          allurectl upload allure-results \
+            --launch-id $LAUNCH_ID \
+            --project-id ${{ secrets.ALLURE_PROJECT_ID }} \
+            --endpoint ${{ secrets.ALLURE_ENDPOINT }} \
+            --token ${{ secrets.ALLURE_TOKEN }}
+
+      - name: 📋 Parse test summary
+        id: parse_summary
+        if: always()
+        run: |
+          file="allure-report/widgets/summary.json"
+          if [ -f "$file" ]; then
+            echo "PASSED=$(jq -r '.statistic.passed' $file)" >> $GITHUB_ENV
+            echo "FAILED=$(jq -r '.statistic.failed' $file)" >> $GITHUB_ENV
+            echo "SKIPPED=$(jq -r '.statistic.skipped' $file)" >> $GITHUB_ENV
+            echo "TOTAL=$(jq -r '.statistic.total' $file)" >> $GITHUB_ENV
+          fi 
+
+      - name: Notify Telegram
+        if: always()
+        run: |
+          status=${{ job.status }}
+          if [ "$status" = "success" ]; then
+            emoji="✅"
+            text="ТЕСТЫ ПРОЙДЕНЫ"
+          else
+            emoji="❌"
+            text="ОШИБКИ В ТЕСТАХ"
+          fi
+
+          msg="$emoji *$text* $emoji%0A"
+          msg+="%0A📊 *Результаты*:%0A"
+
+          msg+="📋 Всего: *$TOTAL*%0A"
+          msg+="✅ Пройдено: *$PASSED*%0A"
+          msg+="❌ Упали: *$FAILED*%0A"
+          msg+="⏭️ Пропущено: *$SKIPPED*%0A"
+          msg+="%0A━━━━━━━━━━━━━━━━━%0A"
+          msg+="🔗 [Отчёт Allure](https://marina-qa1.github.io/diplom_qa_guru/)%0A"
+          msg+="🧪 [TestOps](https://allure.autotests.cloud/launch/49663)%0A"
+          msg+="📦 [Артефакты]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+
+           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+           -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+           -d parse_mode=Markdown \
+           -d text="$msg"
