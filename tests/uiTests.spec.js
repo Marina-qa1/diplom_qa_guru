@@ -18,6 +18,7 @@ let app;
       password: process.env.TEST_USER_PASSWORD 
     };
 
+    
     await page.goto(URL);
     await app.main.gotoLogin();
     await app.login.signIn(authUser);
